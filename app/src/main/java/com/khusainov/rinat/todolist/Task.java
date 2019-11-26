@@ -1,14 +1,15 @@
 package com.khusainov.rinat.todolist;
 
 public class Task {
-    private int mId;
+    private long mId;
     private String mTitle;
+    private boolean mDone;
 
-    public int getId() {
+    public long getId() {
         return mId;
     }
 
-    public void setId(int id) {
+    public void setId(long id) {
         mId = id;
     }
 
@@ -18,5 +19,13 @@ public class Task {
 
     public void setTitle(String title) {
         mTitle = title;
+    }
+
+    public boolean isDone() {
+        return mDone;
+    }
+
+    public void setDone(boolean done) {
+        mDone = done;
     }
 }

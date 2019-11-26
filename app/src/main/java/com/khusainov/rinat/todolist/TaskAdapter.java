@@ -3,6 +3,8 @@ package com.khusainov.rinat.todolist;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -14,6 +16,11 @@ import java.util.List;
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskHolder> {
 
     private List<Task> mTasks = new ArrayList<>();
+    private TaskListener mTaskListener;
+
+    public TaskAdapter(TaskListener taskListener) {
+        mTaskListener = taskListener;
+    }
 
     @NonNull
     @Override
@@ -42,14 +49,36 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskHolder> {
     class TaskHolder extends RecyclerView.ViewHolder {
 
         private TextView mTaskNameTextView;
+        private CheckBox mDoneCheckBox;
 
         public TaskHolder(@NonNull View itemView) {
             super(itemView);
             mTaskNameTextView = itemView.findViewById(R.id.tv_task_name);
+            mDoneCheckBox = itemView.findViewById(R.id.done_checkbox);
         }
 
         private void bind(Task task) {
             mTaskNameTextView.setText(task.getTitle());
+
+            if (task.isDone()) {
+                mDoneCheckBox.setChecked(true);
+            } else {
+                mDoneCheckBox.setChecked(false);
+            }
+
+            mDoneCheckBox.setOnCheckedChangeListener((buttonView, isChecked) ->
+                    mTaskListener.checkDone(task, mDoneCheckBox.isChecked()));
+
+            itemView.setOnLongClickListener(v -> {
+                mTaskListener.deleteTask(task);
+                return true;
+            });
         }
+    }
+
+    public interface TaskListener {
+        void deleteTask(Task task);
+
+        void checkDone(Task task, boolean done);
     }
 }

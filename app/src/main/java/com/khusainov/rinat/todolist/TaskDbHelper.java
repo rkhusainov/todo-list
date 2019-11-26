@@ -8,7 +8,7 @@ import androidx.annotation.Nullable;
 
 public class TaskDbHelper extends SQLiteOpenHelper {
 
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
     private static final String DATABASE_NAME = "TaskDatabase.db";
 
     public TaskDbHelper(@Nullable Context context) {
@@ -16,17 +16,17 @@ public class TaskDbHelper extends SQLiteOpenHelper {
     }
 
     @Override
-    public void onCreate(SQLiteDatabase sqLiteDatabase) {
-
-
-        sqLiteDatabase.execSQL("create table " + TasksDbSchema.TasksTable.NAME + "(" +
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("create table " + TasksDbSchema.TasksTable.NAME + "(" +
                 " _id integer primary key autoincrement, " +
-                TasksDbSchema.TasksTable.Cols.TITLE + " text)");
-
+                TasksDbSchema.TasksTable.Cols.TITLE + " text, " +
+                TasksDbSchema.TasksTable.Cols.DONE + " integer)");
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
-
+    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int oldVersion, int newVersion) {
+        if (oldVersion < DATABASE_VERSION) {
+            sqLiteDatabase.execSQL("ALTER TABLE " + TasksDbSchema.TasksTable.NAME + " ADD done integer");
+        }
     }
 }
