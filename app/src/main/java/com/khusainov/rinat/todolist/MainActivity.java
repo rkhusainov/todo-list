@@ -2,15 +2,11 @@ package com.khusainov.rinat.todolist;
 
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.BaseColumns;
 import android.util.Log;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -23,12 +19,11 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.functions.Consumer;
 import io.reactivex.internal.operators.single.SingleFromCallable;
 import io.reactivex.schedulers.Schedulers;
 
@@ -41,6 +36,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.TaskL
     private TaskAdapter mTaskAdapter;
     private SQLiteDatabase mDatabase;
     private List<Task> mTasks = new ArrayList<>();
+    private ExecutorService mExecutor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,23 +44,27 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.TaskL
         setContentView(R.layout.activity_main);
 
         initViews();
+        initDatabase();
+        initExecutorService();
         getTasks();
     }
 
     private void initViews() {
-
         mAddFab = findViewById(R.id.fab_add);
         mRecyclerView = findViewById(R.id.recycler);
         mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         mTaskAdapter = new TaskAdapter(this);
         mRecyclerView.setAdapter(mTaskAdapter);
 
-        mAddFab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                openDialog();
-            }
-        });
+        mAddFab.setOnClickListener(view -> openDialog());
+    }
+
+    private void initDatabase() {
+        mDatabase = new TaskDbHelper(this).getWritableDatabase();
+    }
+
+    private void initExecutorService() {
+        mExecutor = Executors.newSingleThreadExecutor();
     }
 
     private void openDialog() {
@@ -74,51 +74,37 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.TaskL
 
         builder.setView(editText);
         builder.setTitle("Enter Task Name");
-        builder.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                writeTask(editText.getText().toString());
+        builder.setPositiveButton("Ok", (dialogInterface, i) -> {
+            writeTask(editText.getText().toString());
 
-                // Пауза для того чтобы успело удалиться
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-
-                getTasks();
+            // Пауза для того чтобы успело удалиться
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+
+            getTasks();
         });
         builder.show();
     }
 
     @SuppressLint("CheckResult")
     private void getTasks() {
-        SingleFromCallable.fromCallable(new Callable<Boolean>() {
-            @Override
-            public Boolean call() throws Exception {
-                selectData();
-                return true;
-            }
+        SingleFromCallable.fromCallable(() -> {
+            selectData();
+            return true;
         }).subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Consumer<Boolean>() {
-                    @Override
-                    public void accept(Boolean aBoolean) throws Exception {
-                        mTaskAdapter.addData(mTasks);
-                    }
-                }, new Consumer<Throwable>() {
-                    @Override
-                    public void accept(Throwable throwable) throws Exception {
-                        Toast.makeText(MainActivity.this, "Error", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                .subscribe(aBoolean ->
+                        mTaskAdapter.addData(mTasks), throwable ->
+                        Toast.makeText(MainActivity.this,
+                                "Error",
+                                Toast.LENGTH_SHORT)
+                                .show());
     }
 
     private void selectData() {
-
-        // Получаем базу данных для чтения
-        mDatabase = new TaskDbHelper(this).getWritableDatabase();
 
         // Определяем данные по колонкам, которые необходимо запросить
         String[] projection = {
@@ -165,10 +151,6 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.TaskL
     }
 
     private void insertData(String taskName) {
-        mDatabase = new TaskDbHelper(this).getWritableDatabase();
-        // Получаем базу данных для записи
-        mDatabase = new TaskDbHelper(this).getWritableDatabase();
-
         // Создаем пары ключ-значения для добавления строки
         ContentValues values = new ContentValues();
         values.put(TasksDbSchema.TasksTable.Cols.TITLE, taskName);
@@ -176,54 +158,55 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.TaskL
         mDatabase.insert(TasksDbSchema.TasksTable.NAME, null, values);
     }
 
-
     @Override
     public void deleteTask(Task task) {
-        mDatabase = new TaskDbHelper(this).getWritableDatabase();
-        String selection = BaseColumns._ID + " = ?";
-        String[] selectionArgs = {String.valueOf(task.getId())};
-        mDatabase.delete(
-                TasksDbSchema.TasksTable.NAME,
-                selection,
-                selectionArgs);
 
-        // Пауза для того чтобы успело удалиться
-        try {
-            TimeUnit.MILLISECONDS.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        mExecutor.execute(() -> {
+            String selection = BaseColumns._ID + " = ?";
+            String[] selectionArgs = {String.valueOf(task.getId())};
+            mDatabase.delete(
+                    TasksDbSchema.TasksTable.NAME,
+                    selection,
+                    selectionArgs);
+
+            // Пауза для того чтобы успело удалиться перед обновлением
+            try {
+                TimeUnit.MILLISECONDS.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        });
+
         getTasks();
     }
 
     @Override
     public void checkDone(Task task, boolean done) {
-        ContentValues values = new ContentValues();
-        values.put(BaseColumns._ID,task.getId());
-        values.put(TasksDbSchema.TasksTable.Cols.TITLE, task.getTitle());
 
-        int isDone = done ? 1 : 0;
-        values.put(TasksDbSchema.TasksTable.Cols.DONE, isDone);
-        Log.d(TAG, "updateDb: " + task.isDone() + ", done: " + isDone);
+        mExecutor.execute(() -> {
+            ContentValues values = new ContentValues();
+            values.put(BaseColumns._ID, task.getId());
+            values.put(TasksDbSchema.TasksTable.Cols.TITLE, task.getTitle());
 
-        String selection = BaseColumns._ID + " = ?";
-        String[] selectionArgs = {String.valueOf(task.getId())};
+            int isDone = done ? 1 : 0;
+            values.put(TasksDbSchema.TasksTable.Cols.DONE, isDone);
+            Log.d(TAG, "updateDb: " + task.isDone() + ", done: " + isDone);
 
-        mDatabase.update(
-                TasksDbSchema.TasksTable.NAME,
-                values,
-                selection,
-                selectionArgs);
-    }
+            String selection = BaseColumns._ID + " = ?";
+            String[] selectionArgs = {String.valueOf(task.getId())};
 
-    @Override
-    protected void onStop() {
-        super.onStop();
+            mDatabase.update(
+                    TasksDbSchema.TasksTable.NAME,
+                    values,
+                    selection,
+                    selectionArgs);
+        });
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mDatabase.close();
+        mExecutor.shutdown();
     }
 }
