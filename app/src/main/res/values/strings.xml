@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Todo list</string>
+    <string name="enter_task_name">Enter Task Name</string>
+    <string name="ok">Ok</string>
 </resources>

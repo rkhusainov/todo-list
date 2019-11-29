@@ -1,4 +1,4 @@
-package com.khusainov.rinat.todolist.presentation.ui;
+package com.khusainov.rinat.todolist.presentation.view;
 
 import android.view.LayoutInflater;
 import android.view.View;
