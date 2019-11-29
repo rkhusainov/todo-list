@@ -1,4 +1,4 @@
-package com.khusainov.rinat.todolist;
+package com.khusainov.rinat.todolist.presentation.ui;
 
 import android.annotation.SuppressLint;
 import android.content.ContentValues;
@@ -16,6 +16,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.khusainov.rinat.todolist.R;
+import com.khusainov.rinat.todolist.data.database.TaskDbHelper;
+import com.khusainov.rinat.todolist.data.database.TasksDbSchema;
+import com.khusainov.rinat.todolist.data.model.Task;
 
 import java.util.ArrayList;
 import java.util.List;

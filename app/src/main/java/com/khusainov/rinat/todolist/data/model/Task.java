@@ -1,4 +1,4 @@
-package com.khusainov.rinat.todolist;
+package com.khusainov.rinat.todolist.data.model;
 
 public class Task {
     private long mId;
